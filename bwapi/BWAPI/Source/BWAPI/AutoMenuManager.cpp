@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <sstream>
+#include <Util/Path.h>
+#include <Util/StringUtil.h>
 
 #include <BW/MenuPosition.h>
 #include <BW/Dialog.h>
@@ -34,6 +36,7 @@ void AutoMenuManager::reloadConfig()
 #endif
   this->autoMenuRestartGame = LoadConfigStringUCase("auto_menu", "auto_restart", "OFF");
   this->autoMenuGameName = LoadConfigString("auto_menu", "game");
+  this->autoMenuCharacterName = LoadConfigString("auto_menu", "character_name", "FIRST").substr(0, 24);
 
   // Load map string
   std::string cfgMap = LoadConfigString("auto_menu", "map", "");
@@ -99,12 +102,24 @@ void AutoMenuManager::reloadConfig()
 
   this->autoMenuLanMode = LoadConfigString("auto_menu", "lan_mode", "Local Area Network (UDP)");
   this->autoMenuRace = LoadConfigStringUCase("auto_menu", "race", "RANDOM");
+  std::stringstream raceList(this->autoMenuRace);
+
+  std::string currentrace = this->autoMenuRace.substr(0, this->autoMenuRace.find_first_of(','));
+
+  for (int i = 0; i < (int)gdwProcNum && raceList; ++i)
+      std::getline(raceList, currentrace, ',');
+
+  // trim whitespace outside quotations and then the quotations
+  Util::trim(currentrace, Util::is_whitespace_or_newline);
+  Util::trim(currentrace, [](char c) { return c == '"'; });
+
+  this->autoMenuRace = currentrace;
+
   this->autoMenuEnemyRace[0] = LoadConfigStringUCase("auto_menu", "enemy_race", "RANDOM");
   for (unsigned int i = 1; i < 8; ++i)
   {
-    std::stringstream sskey;
-    sskey << "enemy_race_" << i;
-    this->autoMenuEnemyRace[i] = LoadConfigStringUCase("auto_menu", sskey.str().c_str(), "DEFAULT");
+    std::string key = "enemy_race_" + std::to_string(i);
+    this->autoMenuEnemyRace[i] = LoadConfigStringUCase("auto_menu", key.c_str(), "DEFAULT");
     if (this->autoMenuEnemyRace[i] == "DEFAULT")
       this->autoMenuEnemyRace[i] = this->autoMenuEnemyRace[0];
   }
@@ -113,6 +128,7 @@ void AutoMenuManager::reloadConfig()
   this->autoMenuEnemyCount = std::min(std::max(this->autoMenuEnemyCount, 0U), 7U);
 
   this->autoMenuGameType = LoadConfigStringUCase("auto_menu", "game_type", "MELEE");
+  this->autoMenuGameTypeExtra = LoadConfigString("auto_menu", "game_type_extra", "");
   this->autoMenuSaveReplay = LoadConfigString("auto_menu", "save_replay");
 
   this->autoMenuMinPlayerCount = LoadConfigInt("auto_menu", "wait_for_min_players", 2);
@@ -245,8 +261,34 @@ void AutoMenuManager::onMenuFrame()
 
         // retrieve gametype dropdown
         BW::dialog *gameTypeDropdown = tempDlg->findIndex(17);
+        if (!gameTypeDropdown)
+          break;
+
         if (gt != GameTypes::None && gt != GameTypes::Unknown && (int)gameTypeDropdown->getSelectedValue() != gt)
+        {
           gameTypeDropdown->setSelectedByValue(gt);
+          break;
+        }
+
+        // game types with an extra settings dropdown
+        if (gt == GameTypes::Top_vs_Bottom ||
+            gt == GameTypes::Greed ||
+            gt == GameTypes::Slaughter ||
+            gt == GameTypes::Team_Melee ||
+            gt == GameTypes::Team_Free_For_All ||
+            gt == GameTypes::Team_Capture_The_Flag)
+        {
+          BW::dialog* extraDropdown = tempDlg->findIndex(18);
+          if (!extraDropdown || std::string(extraDropdown->getSelectedString()).empty())
+            break;
+          
+          if (!this->autoMenuGameTypeExtra.empty() &&
+            extraDropdown->getSelectedString() != this->autoMenuGameTypeExtra)
+          {
+            extraDropdown->setSelectedByString(this->autoMenuGameTypeExtra);
+            break;
+          }
+        }
 
         // if this is single player
         if (isAutoSingle)
@@ -300,22 +342,23 @@ void AutoMenuManager::onMenuFrame()
     if (!tempDlg)
       break;
 
-    if (isJoining &&
-      !tempDlg->findIndex(5)->setSelectedByString(this->autoMenuGameName) &&
+    bool gameToJoinExists = tempDlg->findIndex(5)->setSelectedByString(this->autoMenuGameName) ||
+      (this->autoMenuGameName == "JOIN_FIRST" && tempDlg->findIndex(5)->getListCount() > 0);
+
+    if (isJoining && !gameToJoinExists &&
       waitJoinTimer + (3000 * (BroodwarImpl.getInstanceNumber() + 1)) > GetTickCount())
-      break;
+      break; //wait for game to be hosted
 
     waitJoinTimer = GetTickCount();
-    isHost = !(isJoining && tempDlg->findIndex(5)->setSelectedByString(this->autoMenuGameName));
 
-    if (isCreating && isHost)
-    {
-      pressDialogKey(tempDlg->findIndex(15));  // Create Game
-    }
-    else // is joining
+    if (gameToJoinExists)
     {
       this->lastMapGen.clear();
       pressDialogKey(tempDlg->findIndex(13));  // OK
+    }
+    else if (isCreating)
+    {
+      pressDialogKey(tempDlg->findIndex(15));  // Create Game
     }
   }
   break;
@@ -370,7 +413,6 @@ void AutoMenuManager::onMenuFrame()
     if (isCreating &&
       waitRestartTimer + 2000 < GetTickCount() &&
       !actStartedGame &&
-      isHost &&
       getLobbyPlayerReadyCount() > 0 &&
       getLobbyPlayerReadyCount() == getLobbyPlayerCount() &&
       (getLobbyPlayerReadyCount() >= this->autoMenuMinPlayerCount || getLobbyOpenCount() == 0))
@@ -386,18 +428,39 @@ void AutoMenuManager::onMenuFrame()
     } // if isCreating etc
     break;
   case BW::GLUE_LOGIN:  // Registry/Character screen
-    // Type in "BWAPI" if no characters available
-    tempDlg = BW::FindDialogGlobal("gluPEdit");
-    if (tempDlg)
+  {
+    if (this->autoMenuCharacterName == "WAIT")
+      break;
+
+    std::string name = this->autoMenuCharacterName;
+    if (name == "FIRST")
+      name = "bwapi"; // this name will be used if there are no existing characters
+    else if (name.empty())
+      name = "empty";
+
+    BW::dialog* newIdPopup = BW::FindDialogGlobal("gluPEdit");
+    if (newIdPopup)
     {
-      tempDlg->findIndex(4)->setText("BWAPI");
-      pressDialogKey(tempDlg->findIndex(1));
+      newIdPopup->findIndex(4)->setText(&name[0]); //it'll copy the string
+      BroodwarImpl.pressKey(VK_RETURN); // popup Ok
+      BroodwarImpl.pressKey(VK_RETURN); // main Ok
+    }
+    else if (this->autoMenuCharacterName != "FIRST")
+    {
+      //if we're here, there are some existing characters
+      BW::dialog* characterList = BW::FindDialogGlobal("Login")->findIndex(8);
+
+      if (characterList->getListCount() == 0)
+        break; //wait for list to exist/be populated
+      if (characterList->setSelectedByString(this->autoMenuCharacterName))
+        BroodwarImpl.pressKey(VK_RETURN); // main Ok
+      else
+        pressDialogKey(BW::FindDialogGlobal("Login")->findIndex(6)); // New ID
     }
     else
-    {
-      pressDialogKey(BW::FindDialogGlobal("Login")->findIndex(4));
-    }
+      BroodwarImpl.pressKey(VK_RETURN); // main Ok
     break;
+  }
   case BW::GLUE_SCORE_Z_DEFEAT:
   case BW::GLUE_SCORE_Z_VICTORY:
   case BW::GLUE_SCORE_T_DEFEAT:
@@ -431,18 +494,11 @@ const char* AutoMenuManager::interceptFindFirstFile(const char* lpFileName)
   {
     lpFileName = lastMapGen.c_str();
 
-    // get the full map path
-    std::string mapFilePath = installPath() + lastMapGen;
-
-    // Get substring containing only the file name
-    size_t tmp = mapFilePath.find_last_of("/\\");
-    std::string mapFileName(mapFilePath, tmp == std::string::npos ? 0 : tmp + 1);
-
-    // Get substring containing only the directory
-    std::string mapFileDir(mapFilePath, 0, mapFilePath.size() - mapFileName.size() - 1);
+    // Get the directory that the map is in
+    std::string directoryPath = Util::Path(installPath() + lastMapGen).parent_path().string();
 
     // update map folder location
-    SStrCopy(BW::BWDATA::CurrentMapFolder.data(), mapFileDir.c_str(), MAX_PATH);
+    SStrCopy(BW::BWDATA::CurrentMapFolder.data(), directoryPath.c_str(), MAX_PATH);
   }
   return lpFileName;
 }

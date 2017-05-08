@@ -29,9 +29,11 @@ namespace BWAPI
     static void pressDialogKey(BW::dialog *pDlg);
 
     std::string autoMenuMode;
+    std::string autoMenuCharacterName;
     std::string autoMenuLanMode;
     std::string autoMenuRestartGame;
     std::string autoMenuGameType;
+    std::string autoMenuGameTypeExtra;
     std::string autoMenuGameName;
     unsigned lastAutoMapEntry = 0;
     std::string lastMapGen;
@@ -50,7 +52,6 @@ namespace BWAPI
 
     bool actStartedGame = false;
     bool actRaceSel = false;
-    bool isHost = false;
 
 #ifdef _DEBUG
     std::string autoMenuPause;

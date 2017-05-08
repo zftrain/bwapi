@@ -1,4 +1,11 @@
 #include "Map.h"
+
+#include <fstream>
+#include <memory>
+#include <Util/Sha1.h>
+
+#include <Util/Path.h>
+
 #include "../DLLMain.h"
 #include "../Config.h"
 
@@ -8,9 +15,6 @@
 #include <BW/MiniTileFlags.h>
 #include "GameImpl.h"
 #include "PlayerImpl.h"
-#include <fstream>
-#include <memory>
-#include <Util/sha1.h>
 
 #include "../../../Debug.h"
 
@@ -20,40 +24,34 @@ namespace BWAPI
   //----------------------------------------------- GET WIDTH ------------------------------------------------
   u16 Map::getWidth()
   {
-    return BW::BWDATA::MapSize.x;
+    return BW::BWDATA::Game.mapTileSize.x;
   }
   //----------------------------------------------- GET HEIGHT -----------------------------------------------
   u16 Map::getHeight()
   {
-    return BW::BWDATA::MapSize.y;
+    return BW::BWDATA::Game.mapTileSize.y;
   }
   //---------------------------------------------- GET PATH NAME ---------------------------------------------
   std::string Map::getPathName()
   {
-    std::string mapPath( BW::BWDATA::CurrentMapFileName.data() );
-    
+    std::string mapPath( BW::BWDATA::Game.mapFileName );
+
     // If the install path is included in the map path, remove it, creating a relative path
-    if ( !installPath().empty() && mapPath.compare(0, installPath().length(), installPath()) == 0 )
-      mapPath.erase(0, installPath().length() );
-    
+    if (!installPath().empty() && mapPath.compare(0, installPath().length(), installPath()) == 0)
+      mapPath.erase(0, installPath().length());
+
     return mapPath;
   }
   //---------------------------------------------- GET FILE NAME ---------------------------------------------
   std::string Map::getFileName()
   {
-    std::string mapFileName( BW::BWDATA::CurrentMapFileName.data() );
-    
-    // Remove the path
-    size_t tmp = mapFileName.find_last_of("/\\");
-    if ( tmp != std::string::npos )
-      mapFileName.erase(0, tmp+1);
-
-    return mapFileName;
+    Util::Path mapPath( BW::BWDATA::Game.mapFileName );
+    return mapPath.filename().string();
   }
   //------------------------------------------------ GET NAME ------------------------------------------------
   std::string Map::getName()
   {
-    return std::string{ BW::BWDATA::CurrentMapName.data() };
+    return BW::BWDATA::Game.mapTitle;
   }
   void Map::copyToSharedMemory()
   {

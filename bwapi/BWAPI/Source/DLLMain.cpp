@@ -5,7 +5,7 @@
 #include <cassert>
 #include "Thread.h"
 
-#include <Util/clamp.h>
+#include <Util/Clamp.h>
 #include <Util/Convenience.h>
 
 #include <BWAPI.h>
@@ -22,6 +22,7 @@
 #include "CodePatch.h"
 #include "Config.h"
 #include "WMode.h"
+#include "Console.h"
 
 #include "../../Debug.h"
 
@@ -36,7 +37,7 @@ void __fastcall QueueGameCommand(void *pBuffer, size_t dwLength)
   caps.dwSize = sizeof(CAPS);
   SNetGetProviderCaps(&caps);
 
-  DWORD dwMaxBuffer = clamp<DWORD>(caps.maxmessagesize, 0, BW::BWDATA::TurnBuffer.size());
+  DWORD dwMaxBuffer = Util::clamp<size_t>(caps.maxmessagesize, 0, BW::BWDATA::TurnBuffer.size());
   if ( dwLength + BW::BWDATA::sgdwBytesInCmdQueue <= dwMaxBuffer )
   {
     // Copy data to primary turn buffer
@@ -54,7 +55,7 @@ void __fastcall QueueGameCommand(void *pBuffer, size_t dwLength)
   {
     int callDelay = 1;
     if ( BW::BWDATA::NetMode )
-      callDelay = clamp<DWORD>(caps.dwCallDelay, 2, 8);
+      callDelay = Util::clamp<int>(caps.dwCallDelay, 2, 8);
 
     // This statement will probably never be hit, but just in case
     if ( turns >= 16 - callDelay )
@@ -199,6 +200,36 @@ DWORD WINAPI PersistentPatch(LPVOID)
   } //loop
 }
 
+void CheckAttachConsole()
+{
+  bool attach_s = LoadConfigStringUCase("config", "console_attach_on_startup", "FALSE") == "TRUE";
+  bool alloc_s = LoadConfigStringUCase("config", "console_alloc_on_startup", "FALSE") == "TRUE";
+  bool attach_a = LoadConfigStringUCase("config", "console_attach_auto", "TRUE") == "TRUE";
+  bool alloc_a = LoadConfigStringUCase("config", "console_alloc_auto", "TRUE") == "TRUE";
+
+  if (!BWAPI::openConsole(attach_s, alloc_s))
+    BWAPI::autoOpenConsole(attach_a, alloc_a);
+}
+
+HANDLE CreateUniqueEvent()
+{
+  static char szEventName[32];  // The name of the event, unique for this process
+  sprintf(szEventName, "BWAPI #%u", GetCurrentProcessId());
+
+  HANDLE hEvent = CreateEventA(NULL, FALSE, FALSE, szEventName);
+  if (GetLastError() == ERROR_ALREADY_EXISTS) // There is a BWAPI module already injected
+    hEvent = nullptr;
+
+  return hEvent;
+}
+
+void SetDebug()
+{
+#ifdef _DEBUG
+  _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+}
+
 //------------------------------------------------- DLL MAIN -------------------------------------------------
 BOOL APIENTRY DllMain(HMODULE, DWORD ul_reason_for_call, LPVOID)
 {
@@ -217,17 +248,22 @@ BOOL APIENTRY DllMain(HMODULE, DWORD ul_reason_for_call, LPVOID)
     break;
   case DLL_PROCESS_ATTACH:
   {
-    static char szEventName[32];  // The name of the event, unique for this process
-    sprintf(szEventName, "BWAPI #%u", GetCurrentProcessId());
-
     // Create a BWAPI event for this process
-    hEvent = CreateEventA(NULL, FALSE, FALSE, szEventName);
-    if (GetLastError() == ERROR_ALREADY_EXISTS) // There is a BWAPI module already injected
+    hEvent = CreateUniqueEvent();
+    if (!hEvent) // There is a BWAPI module already injected
       return FALSE; // Prevent the injection of this DLL
 
-#ifdef _DEBUG
-    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-#endif
+    // Workaround for injection failures in WINE. The issue is caused by WINE not correctly
+    // loading statically linked libraries upon injection, for some reason this fixes it.
+    // Note that Storm's SFile module is re-initialized upon loading any file.
+    SFileDestroy();
+
+    // Load and attach a console to Broodwar if it was asked for in the config file
+    CheckAttachConsole();
+
+    // Sets debug information
+    SetDebug();
+
     // Do version checking
     CheckVersion();
 

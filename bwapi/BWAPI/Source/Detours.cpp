@@ -5,6 +5,8 @@
 #include <cmath>
 #include <storm.h>
 
+#include <Util/Path.h>
+
 #include "WMode.h"
 #include "DLLMain.h"
 #include "Resolution.h"
@@ -46,6 +48,7 @@ DECL_OLDFXN(Sleep);
 DECL_OLDFXN(CreateThread);
 DECL_OLDFXN(CreateEventA);
 DECL_OLDFXN(GetSystemTimeAsFileTime);
+DECL_OLDFXN(GetCommandLineA);
 
 //------------------------------------------------ RANDOM RACE --------------------------------------------------
 u8 savedRace[BW::PLAYABLE_PLAYER_COUNT];
@@ -110,7 +113,7 @@ void WINAPI _GetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
   auto replacementSeed = BWAPI::BroodwarImpl.seedOverride;
   if (lpSystemTimeAsFileTime != nullptr && replacementSeed != std::numeric_limits<decltype(replacementSeed)>::max())
   {
-    // https://support.microsoft.com/kb/167296
+    // Convert time_t to Windows file time https://support.microsoft.com/kb/167296
     auto ll = Int32x32To64(replacementSeed, 10000000) + 116444736000000000;
     lpSystemTimeAsFileTime->dwLowDateTime = (DWORD)ll;
     lpSystemTimeAsFileTime->dwHighDateTime = ll >> 32;
@@ -118,6 +121,21 @@ void WINAPI _GetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
   }
   auto GetSystemTimeAsFileTimeProc = _GetSystemTimeAsFileTimeOld ? _GetSystemTimeAsFileTimeOld : &GetSystemTimeAsFileTime;
   GetSystemTimeAsFileTimeProc(lpSystemTimeAsFileTime);
+}
+
+//--------------------------------------- GetCommandLineA --------------------------------------------
+LPSTR WINAPI _GetCommandLineA()
+{
+  static std::string newCommandLine;
+  auto GetCommandLineAProc = _GetCommandLineAOld ? _GetCommandLineAOld : &GetCommandLineA;
+  newCommandLine = GetCommandLineAProc();
+
+  // Apply NOSOUND option
+  if (LoadConfigStringUCase("starcraft", "sound", "ON") == "OFF")
+  {
+    newCommandLine += " nosound";
+  }
+  return const_cast<char*>(newCommandLine.c_str());
 }
 
 //--------------------------------------------- CREATE EVENT -------------------------------------------------
@@ -175,20 +193,22 @@ HWND WINAPI _CreateWindowEx(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindow
   HWND hWndReturn = NULL;
   if ( strcmp(lpClassName, "SWarClass") == 0 )
   {
-    std::stringstream newWindowName;
-    newWindowName << lpWindowName;
+    std::string newWindowName = lpWindowName;
     if (gdwProcNum > 1)
-      newWindowName << " Instance " << gdwProcNum;
+      newWindowName += " Instance " + std::to_string(gdwProcNum);
 
     detourCreateWindow = true;
     if ( switchToWMode )
     {
 #ifndef SHADOW_BROODWAR
-      HackUtil::CallPatch(BW::BWDATA::DDrawInitCallPatch, &DDInit);
+      if (isCorrectVersion)
+      {
+        HackUtil::CallPatch(BW::BWDATA::DDrawInitCallPatch, &DDInit);
+      }
 #endif
       hWndReturn = CreateWindowExProc(dwExStyle,
                                         lpClassName,
-                                        newWindowName.str().c_str(),
+                                        newWindowName.c_str(),
                                         dwStyle | WS_OVERLAPPEDWINDOW,
                                         windowRect.left,
                                         windowRect.top,
@@ -203,7 +223,7 @@ HWND WINAPI _CreateWindowEx(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindow
     }
     else
     {
-      hWndReturn = CreateWindowExProc(dwExStyle, lpClassName, newWindowName.str().c_str(), dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+      hWndReturn = CreateWindowExProc(dwExStyle, lpClassName, newWindowName.c_str(), dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
       ghMainWnd = hWndReturn;
     }
     switchToWMode = false;
@@ -279,17 +299,10 @@ BOOL STORMAPI _SDrawCaptureScreen(const char *pszOutput)
   if ( !pszOutput )
     return FALSE;
 
-  std::string newScreenFilename(pszOutput);
+  Util::Path newScreenFilename(pszOutput);
 
-  // Change screenshot extension
   if ( !screenshotFmt.empty() ) // If an extension replacement was specified
-  {
-    size_t tmp = newScreenFilename.find_last_of("./\\");
-    if ( tmp != std::string::npos && newScreenFilename[tmp] == '.' )  // If extension is found
-      newScreenFilename.replace(tmp, std::string::npos, screenshotFmt);
-    else
-      newScreenFilename.append(screenshotFmt);
-  }
+    newScreenFilename.replace_extension(screenshotFmt);
 
   // Save the screenshot in w-mode
   if ( wmode && pBits && isCorrectVersion )
@@ -303,11 +316,11 @@ BOOL STORMAPI _SDrawCaptureScreen(const char *pszOutput)
       pal[i].peBlue   = wmodebmp.bmiColors[i].rgbBlue;
       pal[i].peFlags  = 0;
     }
-    return SBmpSaveImage(newScreenFilename.c_str(), pal, pBits, BW::BWDATA::GameScreenBuffer.width(), BW::BWDATA::GameScreenBuffer.height());
+    return SBmpSaveImage(newScreenFilename.string().c_str(), pal, pBits, BW::BWDATA::GameScreenBuffer.width(), BW::BWDATA::GameScreenBuffer.height());
   }
   // Call the old fxn
   auto SDrawCaptureScreenProc = _SDrawCaptureScreenOld ? _SDrawCaptureScreenOld : &SDrawCaptureScreen;
-  return SDrawCaptureScreenProc(newScreenFilename.c_str());
+  return SDrawCaptureScreenProc(newScreenFilename.string().c_str());
 }
 
 //----------------------------------------------- ON GAME END ------------------------------------------------
@@ -396,7 +409,6 @@ void __stdcall DrawHook(BW::Bitmap *pSurface, BW::bounds *pBounds)
   }
 }
 //------------------------------------------------- MENU HOOK ------------------------------------------------
-bool nosound = false;
 void __stdcall DrawDialogHook(BW::Bitmap *pSurface, BW::bounds *pBounds)
 {
   if ( BW::pOldDrawDialogProc )
@@ -413,14 +425,6 @@ void __stdcall DrawDialogHook(BW::Bitmap *pSurface, BW::bounds *pBounds)
       BWAPI::BroodwarImpl.dropPlayers();
   }
 
-  // NOSOUND config option
-  if ( !nosound )
-  {
-    nosound = true;
-    if ( LoadConfigStringUCase("starcraft", "sound", "ON") == "OFF" )
-      BW::BWFXN_DSoundDestroy();
-  }
-
   // WMODE config option
   if ( switchToWMode && ghMainWnd )
   {
@@ -434,15 +438,6 @@ void __stdcall DrawDialogHook(BW::Bitmap *pSurface, BW::bounds *pBounds)
     endDialog = BW::FindDialogGlobal("WMission");
   if ( endDialog )
     endDialog->findIndex(-2)->activate();
-}
-
-//------------------------------------------- AUTH ARCHIVE HOOK ----------------------------------------------
-BOOL __stdcall _SFileAuthenticateArchive(HANDLE /*hArchive*/, DWORD *dwReturnVal)
-{
-  /* Always return a successful check to bypass our custom SNP module authentication */
-  if ( dwReturnVal )
-    *dwReturnVal = 5;
-  return TRUE;
 }
 
 //--------------------------------------------- OPEN FILE HOOK -----------------------------------------------

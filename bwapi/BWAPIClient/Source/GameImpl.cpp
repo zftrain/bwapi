@@ -508,7 +508,6 @@ namespace BWAPI
                                                               if ( newDistance < bestDistance )
                                                               {
                                                                 pBestUnit = u;
-                                                                // cppcheck-suppress unreadVariable
                                                                 bestDistance = newDistance;
                                                               }
                                                            } } );
@@ -842,6 +841,10 @@ namespace BWAPI
   {
     return data->revision;
   }
+  int GameImpl::getClientVersion() const
+  {
+    return data->client_version;
+  }
   bool GameImpl::isDebug() const
   {
     return data->isDebug;
@@ -955,6 +958,10 @@ namespace BWAPI
     addCommand(BWAPIC::Command(BWAPIC::CommandType::SetRevealAll, reveal ? 1 : 0));
     lastError = Errors::None;
     return true;
+  }
+  unsigned GameImpl::getRandomSeed() const
+  {
+    return data->randomSeed;
   }
 };
 

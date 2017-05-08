@@ -57,8 +57,7 @@ namespace Util
     SharedMemory();
     ~SharedMemory();
 
-    void create(int size);                          // allocates memory
-    bool create(int size, const char* systemName);  // allocates memory, returns false if opened an existing named object
+    bool create(int size, const char* systemName = nullptr);  // allocates memory, returns false if opened an existing named object
     void import(Export source);     // connects to shared memory
     void release();                             // releases memory
     Export exportToProcess(RemoteProcess &target, bool readOnly) const;
@@ -66,16 +65,16 @@ namespace Util
     template<typename T>
       T *unpack(Pointer<T> p) const // to process address space
       {
-        if(!(int)this->bufferBase)
+        if(this->bufferBase == nullptr)
           return NULL;
-        return (T*)(this->bufferBase + p.offset);
+        return reinterpret_cast<T*>(reinterpret_cast<decltype(retval.offset)>(this->bufferBase) + p.offset);
       }
 
     template<typename T>
       Pointer<T> pack(T *pt) const  // to shared address space
       {
         Pointer<T> retval;
-        retval.offset = (int)pt - (int)this->bufferBase;
+        retval.offset = reinterpret_cast<decltype(retval.offset)>(pt) - reinterpret_cast<decltype(retval.offset)>(this->bufferBase);
       }
 
     MemoryFrame getMemory() const;

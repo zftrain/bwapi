@@ -26,6 +26,25 @@
 
 namespace BWAPI
 {
+  // Just hardcode some values that encompass the majority of the scanner graphic (as a hack for now)
+  // Note that scanner sweeps are tricky, since the scanning graphic isn't associated with the scanner unit
+  bool isScannerVisible(BW::Position position)
+  {
+    int left = (position.x - 64) / 32;
+    int top = (position.y - 64) / 32;
+    int right = (position.x + 64) / 32;
+    int bottom = (position.y + 64) / 32;
+    for (int x = left; x <= right; ++x)
+    {
+      for (int y = top; y <= bottom; ++y)
+      {
+        if (BroodwarImpl.isVisible(x, y))
+          return true;
+      }
+    }
+    return false;
+  }
+
   void UnitImpl::updateInternalData()
   {
     BW::CUnit *o = getOriginalRawData;
@@ -65,6 +84,11 @@ namespace BWAPI
         {
           self->isVisible[selfPlayerID] = true;
           self->isDetected              = true;
+        }
+        else if (o->unitType == UnitTypes::Spell_Scanner_Sweep)
+        {
+          self->isVisible[selfPlayerID] = isScannerVisible(o->position);
+          self->isDetected = true;
         }
         else
         {
@@ -168,6 +192,7 @@ namespace BWAPI
       _isCompleted        = false;              //_isCompleted
     }
   }
+  /// @todo TODO Refactor this entirely
   void UnitImpl::updateData()
   {
     BW::CUnit *o = getOriginalRawData;
@@ -240,6 +265,12 @@ namespace BWAPI
       self->isMoving              = false;  //isMoving
       self->isStartingAttack      = false;  //isStartingAttac
     }
+
+    self->scarabCount = 0;
+    self->interceptorCount = 0;
+    self->spiderMineCount = 0;
+    self->carrier = -1;
+    self->hatchery = -1;
     if (canAccessDetected())
     {
       self->lastHitPoints       = wasAccessible ? self->hitPoints : _getHitPoints;  //getHitPoints
@@ -385,6 +416,30 @@ namespace BWAPI
       self->buttonset       = o->currentButtonSet;
       self->lastAttackerPlayer = o->lastAttackingPlayer;
       self->recentlyAttacked = o->lastEventColor == 174 ? o->lastEventTimer != 0 : false;
+
+      switch (_getType)
+      {
+      case UnitTypes::Enum::Protoss_Reaver:
+      case UnitTypes::Enum::Hero_Warbringer:
+        self->scarabCount = o->carrier.inHangerCount;
+        break;
+      case UnitTypes::Enum::Terran_Vulture:
+      case UnitTypes::Enum::Hero_Jim_Raynor_Vulture:
+        self->spiderMineCount = o->vulture.spiderMineCount;
+        break;
+      case UnitTypes::Enum::Protoss_Carrier:
+      case UnitTypes::Enum::Hero_Gantrithor:
+        self->interceptorCount = o->carrier.inHangerCount + o->carrier.outHangerCount;
+        break;
+      case UnitTypes::Enum::Protoss_Interceptor:
+        self->carrier = BroodwarImpl.server.getUnitID(UnitImpl::BWUnitToBWAPIUnit(o->fighter.parent));
+        break;
+      case UnitTypes::Enum::Zerg_Larva:
+        self->hatchery = BroodwarImpl.server.getUnitID(UnitImpl::BWUnitToBWAPIUnit(o->connectedUnit));
+        break;
+      default:
+        break;
+      }
     }
     else
     {
@@ -455,12 +510,8 @@ namespace BWAPI
     if (canAccessInside())
     {
       // Default assignments
-      self->scarabCount           = 0;
-      self->spiderMineCount       = 0;
       self->trainingQueueCount    = 0;
       self->remainingTrainTime    = 0;
-      self->carrier               = -1;
-      self->hatchery              = -1;
       self->hasNuke               = false;
       self->buildType             = UnitTypes::None;
       self->tech                  = TechTypes::None;
@@ -489,14 +540,6 @@ namespace BWAPI
       // Unit Type switch; special cases
       switch ( _getType )
       {
-      case UnitTypes::Enum::Protoss_Reaver:
-      case UnitTypes::Enum::Hero_Gantrithor:
-        self->scarabCount = o->carrier.inHangerCount;
-        break;
-      case UnitTypes::Enum::Terran_Vulture:
-      case UnitTypes::Enum::Hero_Jim_Raynor_Vulture:
-        self->spiderMineCount = o->vulture.spiderMineCount;
-        break;
       case UnitTypes::Enum::Terran_Nuclear_Silo:
         if (o->secondaryOrderID == Orders::Train)
         {
@@ -512,12 +555,6 @@ namespace BWAPI
           self->remainingTrainTime = self->remainingBuildTime;
         else
           self->remainingTrainTime = o->building.larvaTimer * 9 + ((o->orderQueueTimer + 8) % 9);
-        break;
-      case UnitTypes::Enum::Protoss_Interceptor:
-        self->carrier = BroodwarImpl.server.getUnitID(UnitImpl::BWUnitToBWAPIUnit(o->fighter.parent));
-        break;
-      case UnitTypes::Enum::Zerg_Larva:
-        self->hatchery = BroodwarImpl.server.getUnitID(UnitImpl::BWUnitToBWAPIUnit(o->connectedUnit));
         break;
       default:
         break;
@@ -590,8 +627,6 @@ namespace BWAPI
     }
     else
     {
-      self->scarabCount           = 0;                    //getScarabCount
-      self->spiderMineCount       = 0;                    //getSpiderMineCount
       self->buildType             = UnitTypes::None;     //getBuildType
       self->trainingQueueCount    = 0;                    //getTrainingQueue
       self->tech                  = TechTypes::None;     //getTech
@@ -604,8 +639,6 @@ namespace BWAPI
       self->rallyPositionY        = Positions::None.y;  //getRallyPosition
       self->rallyUnit             = -1;                   //getRallyUnit
       self->transport             = -1;                   //getTransport
-      self->carrier               = -1;                   //getCarrier
-      self->hatchery              = -1;                   //getHatchery
       self->hasNuke               = false;                //hasNuke
       self->isHallucination       = false;                //isHallucination
     }

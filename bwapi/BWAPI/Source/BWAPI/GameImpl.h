@@ -156,6 +156,7 @@ namespace BWAPI
       virtual int getRemainingLatencyTime() const override;
 
       virtual int  getRevision() const override;
+      virtual int  getClientVersion() const override;
       virtual bool isDebug() const override;
       virtual bool isLatComEnabled() const override;
       virtual void setLatCom(bool isEnabled) override;
@@ -181,6 +182,8 @@ namespace BWAPI
       virtual int getLastEventTime() const override;
 
       virtual bool setRevealAll(bool reveal = true) override;
+
+      virtual unsigned getRandomSeed() const override;
 
       //Internal BWAPI commands:
       GameImpl();

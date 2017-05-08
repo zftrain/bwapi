@@ -11,10 +11,10 @@ void writeRaceInfo()
 
     of << docIntro(t) << "\n";
 
-    of << "<table border='0'>";
+    of << "<table>";
     
     of << row("Worker", iconref(t.getWorker()));
-    of << row("Resource Depot", iconref(t.getCenter()));
+    of << row("Resource Depot", iconref(t.getResourceDepot()));
     of << row("Refinery", iconref(t.getRefinery()));
     of << row("Transport", iconref(t.getTransport()));
     of << row("Supply Provider", iconref(t.getSupplyProvider()));

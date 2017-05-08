@@ -20,7 +20,7 @@ void DevAIModule::onStart()
 {
   // enable stuff
   bw->enableFlag(Flag::UserInput);
-  bw->enableFlag(Flag::CompleteMapInformation);
+  //bw->enableFlag(Flag::CompleteMapInformation);
 
   // save player info
   self = bw->self();
@@ -35,6 +35,8 @@ void DevAIModule::onStart()
 
   // set command optimization
   bw->setCommandOptimizationLevel(0);
+  //147...610
+  bw << "Random Seed: " << bw->getRandomSeed() << std::endl;
 }
 
 void DevAIModule::onEnd(bool isWinner)
@@ -46,12 +48,10 @@ void DevAIModule::onFrame()
   if ( bw->isReplay() ) // ignore everything if in a replay
     return;
 
-  for (auto &u : bw->getAllUnits())
+  for (Unit u : bw->getAllUnits())
   {
-    if (!u->getType().isResourceContainer() && !u->getType().isWorker() && !u->getType().isCritter() && !u->getType().isResourceDepot()
-      && u->getType() != UnitTypes::Zerg_Overlord && u->getType() != UnitTypes::Zerg_Larva && u->getType() != UnitTypes::Zerg_Egg)
-    {
-      Broodwar << u->getType() << std::endl;
+    if (u->getType() == UnitTypes::Spell_Scanner_Sweep) {
+      Broodwar << "SCANNER @ " << u->getPosition() << std::endl;
     }
   }
 }
@@ -87,26 +87,44 @@ void DevAIModule::onNukeDetect(BWAPI::Position target)
 
 void DevAIModule::onUnitDiscover(BWAPI::Unit unit)
 {
+  if (unit->getType() == UnitTypes::Spell_Scanner_Sweep) {
+    Broodwar << "discover @ " << unit->getPosition() << std::endl;
+  }
 }
 
 void DevAIModule::onUnitEvade(BWAPI::Unit unit)
 {
+  if (unit->getType() == UnitTypes::Spell_Scanner_Sweep) {
+    Broodwar << "evade @ " << unit->getPosition() << std::endl;
+  }
 }
 
 void DevAIModule::onUnitShow(BWAPI::Unit unit)
 {
+  if (unit->getType() == UnitTypes::Spell_Scanner_Sweep) {
+    Broodwar << "show @ " << unit->getPosition() << std::endl;
+  }
 }
 
 void DevAIModule::onUnitHide(BWAPI::Unit unit)
 {
+  if (unit->getType() == UnitTypes::Spell_Scanner_Sweep) {
+    Broodwar << "hide @ " << unit->getPosition() << std::endl;
+  }
 }
 
 void DevAIModule::onUnitCreate(BWAPI::Unit unit)
 {
+  if (unit->getType() == UnitTypes::Spell_Scanner_Sweep) {
+    Broodwar << "create @ " << unit->getPosition() << std::endl;
+  }
 }
 
 void DevAIModule::onUnitDestroy(BWAPI::Unit unit)
 {
+  if (unit->getType() == UnitTypes::Spell_Scanner_Sweep) {
+    Broodwar << "destroy @ " << unit->getPosition() << std::endl;
+  }
 }
 
 void DevAIModule::onUnitMorph(BWAPI::Unit unit)

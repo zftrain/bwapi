@@ -49,10 +49,7 @@ std::string getModuleNameFrom(LPCVOID pExcptAddr)
 void GetCurrentProductVersion(WORD &w1, WORD &w2, WORD &w3, WORD &w4)
 {
   // Initialize values
-  w1 = 0;
-  w2 = 0;
-  w3 = 0;
-  w4 = 0;
+  w1 = w2 = w3 = w4 = 0;
 
   // Get path to Starcraft.exe
   char szExecutableName[MAX_PATH];
@@ -113,6 +110,7 @@ LONG WINAPI BWAPIExceptionFilter(EXCEPTION_POINTERS *ep)
     // BWAPI/Broodwar specific
     fprintf(hFile, "BWAPI:\n");
     fprintf(hFile, "  REVISION: %d\n", BWAPI::BroodwarImpl.getRevision());
+    fprintf(hFile, "  CLIENT VERSION: %d\n", BWAPI::BroodwarImpl.getClientVersion());
     fprintf(hFile, "  BUILD: %s\n", BWAPI::BroodwarImpl.isDebug() ? "DEBUG" : "RELEASE");
     fprintf(hFile, "  ERROR: %s\n", BWAPI::BroodwarImpl.getLastError().c_str());
     fprintf(hFile, "  LOCATION: %s %s\n", BWAPI::BroodwarImpl.isMultiplayer() ? (BWAPI::BroodwarImpl.isBattleNet() ? "Battle.net" : "Multiplayer") : "Single Player", BWAPI::BroodwarImpl.isReplay() ? "Replay" : "");
@@ -212,7 +210,7 @@ LONG WINAPI BWAPIExceptionFilter(EXCEPTION_POINTERS *ep)
 
     // Load custom symbols for Broodwar, etc
     std::vector<_customSymbolStore> customSymbols;
-    std::string symbolMapPath = installPath() + "bwapi-data\\data\\Broodwar.map";
+    std::string symbolMapPath = configDir() + "data\\Broodwar.map";
     FILE *hBWSymbols = fopen(symbolMapPath.c_str(), "r");
     if ( hBWSymbols )
     {
@@ -229,7 +227,7 @@ LONG WINAPI BWAPIExceptionFilter(EXCEPTION_POINTERS *ep)
       }
       fclose(hBWSymbols);
     }
-    /*std::ifstream bwSymbols( installPath() + "bwapi-data\\data\\Broodwar.map");
+    /*std::ifstream bwSymbols( configDir() + "data\\Broodwar.map");
     if ( bwSymbols )
     {
       DWORD dwAddr = 0, dwSize = 0;

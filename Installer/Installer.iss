@@ -1,7 +1,7 @@
 ;This is an INNO Setup script
 ;You should download INNO Setup and INNO Script Studio v2 to modify and compile it
 
-#define BWAPI_VERSION "4.1.2"
+#define BWAPI_VERSION "4.2.0"
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -31,10 +31,15 @@ Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 
 [Files]
 Source: "..\Release_Binary\Starcraft\SNP_DirectIP.snp"; DestDir: "{code:BroodwarPath}\"; Flags: ignoreversion; Components: Binaries\BWAPI; Check: GetBroodwarPath
+Source: "..\Release_Binary\Starcraft\SNP_DirectIP.snp"; DestDir: "{app}\Starcraft\"; Flags: ignoreversion; Components: Binaries\BWAPI
 Source: "..\Release_Binary\Starcraft\bwapi-data\BWAPI.dll"; DestDir: "{code:BroodwarPath}\bwapi-data"; Flags: ignoreversion; Components: Binaries\BWAPI; Check: GetBroodwarPath
+Source: "..\Release_Binary\Starcraft\bwapi-data\BWAPI.dll"; DestDir: "{app}\Starcraft\bwapi-data"; Flags: ignoreversion; Components: Binaries\BWAPI
 Source: "..\Release_Binary\Starcraft\bwapi-data\bwapi.ini"; DestDir: "{code:BroodwarPath}\bwapi-data\"; Flags: ignoreversion; Components: Binaries\BWAPI; Check: GetBroodwarPath
+Source: "..\Release_Binary\Starcraft\bwapi-data\bwapi.ini"; DestDir: "{app}\Starcraft\bwapi-data\"; Flags: ignoreversion; Components: Binaries\BWAPI
 Source: "..\Release_Binary\Starcraft\bwapi-data\BWAPId.dll"; DestDir: "{code:BroodwarPath}\bwapi-data\"; Flags: ignoreversion; Components: Binaries\BWAPI; Check: GetBroodwarPath
+Source: "..\Release_Binary\Starcraft\bwapi-data\BWAPId.dll"; DestDir: "{app}\Starcraft\bwapi-data\"; Flags: ignoreversion; Components: Binaries\BWAPI
 Source: "..\Release_Binary\Starcraft\bwapi-data\data\Broodwar.map"; DestDir: "{code:BroodwarPath}\bwapi-data\data\"; Flags: ignoreversion; Components: Binaries\BWAPI; Check: GetBroodwarPath
+Source: "..\Release_Binary\Starcraft\bwapi-data\data\Broodwar.map"; DestDir: "{app}\Starcraft\bwapi-data\data\"; Flags: ignoreversion; Components: Binaries\BWAPI
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; DestName: "README.txt"; Flags: ignoreversion isreadme
 Source: "..\Release_Binary\vcredist_x86.exe"; DestDir: "{app}"; Flags: ignoreversion deleteafterinstall
@@ -63,11 +68,10 @@ AppUpdatesURL=http://bwapi.github.io
 VersionInfoDescription=Brood War Application Programming Interface
 VersionInfoProductName=BWAPI
 MinVersion=0,5.01.2600
-DefaultDirName={pf}\BWAPI
+DefaultDirName={%USERPROFILE}\BWAPI
 UsePreviousSetupType=False
 UsePreviousTasks=False
 UsePreviousLanguage=False
-ShowTasksTreeLines=True
 AlwaysShowGroupOnReadyPage=True
 AlwaysShowDirOnReadyPage=True
 UsePreviousGroup=False
@@ -91,15 +95,17 @@ OutputBaseFilename=BWAPI_Setup
 InternalCompressLevel=ultra
 SolidCompression=True
 Compression=lzma2/ultra
+DisableReadyPage=True
 
 [Components]
-Name: "Binaries"; Description: "Binaries"
+Name: "Binaries"; Description: "Binaries"; Types: custom full
 Name: "Binaries\BWAPI"; Description: "BWAPI Binaries (Requires Starcraft: Broodwar)"; Types: full custom; Check: GetBroodwarPath
+Name: "Binaries\Gateways"; Description: "The Abyss Battle.net Gateway"; Types: custom full
 Name: "Binaries\vcredist"; Description: "Microsoft Visual C++ 2013 Redistributable (x86) - 12.0.21005"; Types: custom full
 Name: "Library"; Description: "Interface"; Types: custom full
-Name: "Library\Headers"; Description: "Library & Header Files"; Types: custom full
-Name: "Library\Examples"; Description: "Example Projects"; Types: custom full
 Name: "Library\Documentation"; Description: "Documentation"; Types: custom full
+Name: "Library\Examples"; Description: "Example Projects"; Types: custom full
+Name: "Library\Headers"; Description: "Library & Header Files"; Types: custom full
 Name: "Chaoslauncher"; Description: "Chaoslauncher (Plugin Loader) & Plugins"; Types: full custom
 Name: "MPQDraft"; Description: "MPQDraft (Mod Manager & Plugin Loader)"; Types: custom full
 
@@ -116,12 +122,7 @@ Name: "full"; Description: "Full Installation"
 Name: "custom"; Description: "Custom Installation"; Flags: iscustom
 
 [Registry]
-Root: "HKCU32"; Subkey: "Software\Battle.net\Configuration"; ValueType: multisz; ValueName: "Battle.net gateways"; ValueData: "{code:InstallGateway|sc.theabyss.ru;+7;The Abyss (ICCUP);}"; Tasks: ICCUP
-Root: "HKCU32"; Subkey: "Software\Battle.net\Configuration"; ValueType: multisz; ValueName: "Battle.net gateways"; ValueData: "{code:InstallGateway|games.podolsk.ru;+8;Games Podolsk;}"; Tasks: Podolsk
-
-[Tasks]
-Name: "ICCUP"; Description: "The Abyss (ICCUP)"; GroupDescription: "Install Additional Battle.net Gateways:"
-Name: "Podolsk"; Description: "Games Podolsk"; GroupDescription: "Install Additional Battle.net Gateways:"
+Root: "HKCU32"; Subkey: "Software\Battle.net\Configuration"; ValueType: multisz; ValueName: "Battle.net gateways"; ValueData: "{code:InstallGateway|sc.theabyss.ru;+7;The Abyss (ICCUP);}"; Components: Binaries\Gateways
 
 [Code]
 var sBroodwarPath : String;
@@ -139,8 +140,6 @@ var
 begin
   // Workaround: Determine the correct 32-bit subkey name because of INNO setup bug
   sSubkeyName := 'SOFTWARE\'
-  if ( IsWin64() ) then
-    StrCat(sSubkeyName, 'Wow6432Node\');
 
   StrCat(sSubkeyName, CompanyName);
   StrCat(sSubkeyName, '\');
@@ -164,8 +163,6 @@ begin
     begin
       // Determine subkey due to a bug in INNO setup
       sSubkey := 'SOFTWARE\Blizzard Entertainment\Starcraft';
-      if ( IsWin64() ) then
-        sSubkey := 'SOFTWARE\Wow6432Node\Blizzard Entertainment\Starcraft';
 
       // Write the InstallPath, first try HKLM (because Chaoslaunch complains), then HKCU
       Result := True;

@@ -1,13 +1,12 @@
 # The Brood War API {#BWAPI}
+
+[![Build status](https://ci.appveyor.com/api/projects/status/6eikd5g49co6l5ty/branch/develop?svg=true)](https://ci.appveyor.com/project/heinermann/bwapi/branch/develop)
+
 [TOC]
 
-# Project Information {#project}
-
-* [Project website] (http://bwapi.github.io)
-* [Go to the build pipeline](http://ec2-54-68-169-224.us-west-2.compute.amazonaws.com:8080/)
-* [Go to the releases](https://github.com/bwapi/bwapi/releases)
-
 @htmlinclude twitter_widget
+
+# Project Information {#project}
 
 ## Overview {#overview}
 
@@ -37,11 +36,42 @@ AI tournaments). Changed defaults will be advertised when the match begins.
  - If you would like to develop a bot in Java, please follow [this tutorial](http://sscaitournament.com/index.php?action=tutorial).
  - Want to help improve BWAPI? Fork the [`develop` branch](https://github.com/bwapi/bwapi/tree/develop).
 
+## Quick Start {#quick-start}
+1. Installation
+   1. Install **Visual Studio 2013**
+   2. Install **StarCraft: Brood War**
+   3. Update **StarCraft: Brood War** to `1.16.1`
+   4. Install **BWAPI**
+2. Compile
+   1. Open `ExampleProjects.sln` in the BWAPI install directory
+   2. Build the ExampleAIModule project in RELEASE mode
+   3. Copy `ExampleAIModule.dll` to `bwapi-data/AI` inside the StarCraft install folder
+3. Run StarCraft through Chaoslauncher
+   1. Run `Chaoslauncher.exe` as administrator
+      - Chaoslauncher is found in Chaoslauncher directory of BWAPI install directory
+   3. Check the *BWAPI Injector x.x.x [RELEASE]*
+   4. Click Start
+      - Make sure the version is set to Starcraft 1.16.1, not ICCup 1.16.1
+4. Run a game against Blizzard's AI
+   1. Go to **Single Player** -> **Expansion**
+   2. Select any user and click **OK**
+   3. Click **Play Custom**, select a map, and start a game
+5. Run a game against yourself
+   1. Run `Chaoslauncher - MultiInstance.exe` as administrator
+   2. Start
+      1. Go to **Multiplayer** -> **Expansion** -> **Local PC**
+      2. Select any user and click **OK**
+      3. Click **Create Game**, select a map, and click **OK**
+   3. Start -- Uncheck *BWAPI Injector x.x.x [RELEASE]* to let a human play, leave alone to make AI play itself
+      1. Go to **Multiplayer** -> **Expansion** -> **Local PC**
+      2. Select any user and click **OK**
+      3. Join the existing game created by the other client
  
 ## Important Links & Contact Information {#contact}
 * **Documentation:**         http://bwapi.github.io/
 * **Repository:**            https://github.com/bwapi/bwapi
 * **Issue Tracker:**         https://github.com/bwapi/bwapi/issues
+* **Releases:**              https://github.com/bwapi/bwapi/releases
 * **IRC Channel:**           http://webchat.freenode.net/?channels=BWAPI
 * **Facebook:**              https://www.facebook.com/groups/bwapi/
 * **Links to competitions, bots, etc. :**    https://github.com/bwapi/bwapi/wiki/Useful-Links

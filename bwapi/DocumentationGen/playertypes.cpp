@@ -1,5 +1,8 @@
 #include "helpers.h"
 
+#include <set>
+#include <string>
+
 void writePlayerTypeInfo()
 {
   std::ofstream of("playertypes.dox");
@@ -17,7 +20,7 @@ void writePlayerTypeInfo()
 
     if (!locations.empty())
     {
-      of << "<table border='0'>";
+      of << "<table>";
       of << row("Game Locations", makelist(locations));
       of << "</table>\n";
     }

@@ -1,5 +1,8 @@
 #include "GameImpl.h"
 
+#include <Util/Path.h>
+#include <Util/StringUtil.h>
+
 #include "PlayerImpl.h"
 
 #include "DLLMain.h"
@@ -147,7 +150,7 @@ void GameImpl::update()
   {
     this->bTournamentMessageAppeared = true;
     this->isTournamentCall = true;
-    sendText("%s", getTournamentString());
+    sendText("%s", getTournamentString().c_str());
     if ( this->tournamentController )
       this->tournamentController->onFirstAdvertisement();
     this->isTournamentCall = false;
@@ -200,7 +203,7 @@ void GameImpl::update()
 
   // Set the replay time, this is a workaround to fixing the replay DIVIDE_BY_ZERO exception bug
   if ( !this->isReplay() )
-    BW::BWDATA::ReplayFrames = this->getFrameCount()+20;
+    BW::BWDATA::ReplayHead.frameCount = this->getFrameCount()+20;
 
   // Execute commands that have been buffered by the command optimizer
   commandOptimizer.flush();
@@ -216,8 +219,8 @@ void GameImpl::update()
 //------------------------------------------------- STATS -------------------------------------------------
 void GameImpl::updateStatistics()
 {
-  apmCounter.update();
-  fpsCounter.update();
+  apmCounter.update(getFrameCount());
+  fpsCounter.update(getFrameCount());
 }
 
 //------------------------------------------------- OVERLAYS -------------------------------------------------
@@ -343,7 +346,8 @@ void GameImpl::initializeAIModule()
     // declare/assign variables
     hAIModule         = nullptr;
 
-    std::string aicfg = LoadConfigString("ai", BUILD_DEBUG ? "ai_dbg" : "ai", "_NULL"), dll;
+    std::string dll;
+    std::string aicfg = LoadConfigString("ai", BUILD_DEBUG ? "ai_dbg" : "ai", "_NULL");
     if (aicfg == "_NULL")
     {
       BWAPIError("Could not find %s under ai in \"%s\".", BUILD_DEBUG ? "ai_dbg" : "ai", configPath().c_str());
@@ -359,10 +363,9 @@ void GameImpl::initializeAIModule()
       for (int i = 0; i < (int)gdwProcNum && aiList; ++i)
         std::getline(aiList, dll, ',');
 
-      // Trim leading and trailing spaces, and extra quotations
-      auto trimBegin = dll.find_first_not_of(" \"");
-      auto trimEnd = dll.find_last_not_of(" \"") + 1;
-      dll = dll.substr(trimBegin, trimEnd - trimBegin);
+      // trim whitespace outside quotations and then the quotations
+      Util::trim(dll, Util::is_whitespace_or_newline);
+      Util::trim(dll, [](char c) { return c == '"'; });
 
       hAIModule = LoadLibraryA(dll.c_str());
     }
@@ -396,12 +399,8 @@ void GameImpl::initializeAIModule()
           Broodwar << Text::Green << "Loaded the AI Module: " << dll << std::endl;
         externalModuleConnected = true;
 
-        moduleName = dll;
-
         // Strip the path from the module name
-        size_t tmp = moduleName.find_last_of("/\\");
-        if ( tmp != std::string::npos )
-          moduleName.erase(0, tmp+1);
+        moduleName = Util::Path(dll).filename().string();
       }
       else  // If the AIModule function is not found
       {

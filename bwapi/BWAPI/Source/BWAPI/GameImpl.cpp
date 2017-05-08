@@ -8,7 +8,7 @@
 #include <cmath>
 #include <fstream>
 
-#include <Util/clamp.h>
+#include <Util/Clamp.h>
 #include <Util/Convenience.h>
 
 #include <BWAPI/ForceImpl.h>
@@ -129,7 +129,7 @@ namespace BWAPI
   //--------------------------------------------- GET REPLAY FRAME COUNT -------------------------------------
   int GameImpl::getReplayFrameCount() const
   {
-    return BW::BWDATA::ReplayFrames;
+    return BW::BWDATA::ReplayHead.frameCount;
   }
   //------------------------------------------------ GET FPS -------------------------------------------------
   int GameImpl::getFPS() const
@@ -206,7 +206,7 @@ namespace BWAPI
     movePos &= 0xFFFFFFF8;
     BW::BWDATA::MoveToX = movePos.x;
     BW::BWDATA::MoveToY = movePos.y;
-    BW::BWDATA::MoveToTile = BW::TilePosition(movePos);
+    BW::BWDATA::Game.screenTilePosition = BW::TilePosition(movePos);
     BW::BWFXN_UpdateScreenPosition();
   }
   //---------------------------------------------- PING MINIMAP ----------------------------------------------
@@ -309,7 +309,6 @@ namespace BWAPI
                                                                   if ( newDistance < bestDistance )
                                                                   {
                                                                     pBestUnit = u;
-                                                                    // cppcheck-suppress unreadVariable
                                                                     bestDistance = newDistance;
                                                                   }
                                                                 } } );
@@ -590,7 +589,7 @@ namespace BWAPI
 
     u32 alliance = 0;
     for (int i = 0; i < BW::PLAYER_COUNT; ++i)
-      alliance |= (BW::BWDATA::Alliance[BWAPIPlayer->getIndex()][i] & 3) << (i*2);
+      alliance |= (BW::BWDATA::Game.playerAlliances[BWAPIPlayer->getIndex()][i] & 3) << (i*2);
     
     u8 newAlliance = allied ? (alliedVictory ? 2 : 1) : 0;
     if ( allied )
@@ -620,7 +619,7 @@ namespace BWAPI
       if ( !BWAPIPlayer || player == BWAPIPlayer )
         return this->setLastError(Errors::Invalid_Parameter);
 
-      u16 vision = static_cast<u16>(BW::BWDATA::PlayerVision[BWAPIPlayer->getIndex()]);
+      u16 vision = static_cast<u16>(BW::BWDATA::Game.playerVision[BWAPIPlayer->getIndex()]);
       if ( enabled )
         vision |= 1 << static_cast<PlayerImpl*>(player)->getIndex();
       else
@@ -788,7 +787,7 @@ namespace BWAPI
       caps.dwSize = sizeof(CAPS);
       SNetGetProviderCaps(&caps);
 
-      dwCallDelay = clamp<DWORD>(caps.dwCallDelay, 2, 8);
+      dwCallDelay = Util::clamp<int>(caps.dwCallDelay, 2, 8);
     }
     return (BW::BWDATA::LatencyFrames[BW::BWDATA::GameSpeed]) * (BW::BWDATA::Latency + dwCallDelay + 1);
   }
@@ -808,6 +807,10 @@ namespace BWAPI
   int GameImpl::getRevision() const
   {
     return SVN_REV;
+  }
+  int GameImpl::getClientVersion() const
+  {
+    return CLIENT_VERSION;
   }
   bool GameImpl::isDebug() const
   {
@@ -837,7 +840,7 @@ namespace BWAPI
   //---------------------------------------------------- SET MAP ---------------------------------------------
   bool GameImpl::setMap(const char *mapFileName)
   {
-    if ( !mapFileName || strlen(mapFileName) >= MAX_PATH || !mapFileName[0] )
+    if ( !mapFileName || strlen(mapFileName) >= std::extent<decltype(BW::BWDATA::Game.mapFileName)>::value || !mapFileName[0] )
       return setLastError(Errors::Invalid_Parameter);
 
     if ( !std::ifstream(mapFileName).is_open() )
@@ -847,18 +850,18 @@ namespace BWAPI
       return setLastError(Errors::None);
 
 
-    strcpy(BW::BWDATA::CurrentMapFileName.data(), mapFileName);
+    strcpy(BW::BWDATA::Game.mapFileName, mapFileName);
     return setLastError(Errors::None);
   }
   //------------------------------------------------- ELAPSED TIME -------------------------------------------
   int GameImpl::elapsedTime() const
   {
-    return BW::BWDATA::ElapsedTime;
+    return BW::BWDATA::Game.elapsedTime;
   }
   //-------------------------------------- SET COMMAND OPTIMIZATION LEVEL ------------------------------------
   void GameImpl::setCommandOptimizationLevel(int level)
   {
-    level = clamp<int>(level, 0, 4);
+    level = Util::clamp(level, 0, 4);
     if ( !this->tournamentCheck(Tournament::SetCommandOptimizationLevel, &level) )
       return;
     this->commandOptimizer.level = level;
@@ -866,7 +869,7 @@ namespace BWAPI
   //----------------------------------------------- COUNTDOWN TIMER ------------------------------------------
   int GameImpl::countdownTimer() const
   {
-    return BW::BWDATA::CountdownTimer;
+    return BW::BWDATA::Game.countdownTimer;
   }
   //------------------------------------------------- GET REGION AT ------------------------------------------
   BWAPI::Region GameImpl::getRegionAt(int x, int y) const
@@ -895,6 +898,11 @@ namespace BWAPI
       return this->setLastError(Errors::Invalid_Parameter);
     BW::BWDATA::ReplayRevealAll = reveal ? 1 : 0;
     return this->setLastError();
+  }
+  //-------------------------------------------------- GET RANDOM SEED ---------------------------------------
+  unsigned GameImpl::getRandomSeed() const
+  {
+    return BW::BWDATA::ReplayHead.gameSeed.randSeed;
   }
 };
 

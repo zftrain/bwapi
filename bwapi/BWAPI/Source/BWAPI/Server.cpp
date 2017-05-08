@@ -263,7 +263,7 @@ namespace BWAPI
     StrCopy(data->eventStrings[data->eventStringCount], text);
     return data->eventStringCount++;
   }
-  int Server::addEvent(BWAPI::Event e)
+  int Server::addEvent(const BWAPI::Event& e)
   {
     assert(data->eventCount < GameData::MAX_EVENTS);
     BWAPIC::Event* e2 = &(data->events[data->eventCount++]);
@@ -334,6 +334,7 @@ namespace BWAPI
     //called once when Starcraft starts. Not at the start of every match.
     data->instanceID       = gdwProcNum;
     data->revision         = SVN_REV;
+    data->client_version   = CLIENT_VERSION;
     data->isDebug          = (BUILD_DEBUG == 1);
     data->eventCount       = 0;
     data->eventStringCount = 0;
@@ -414,12 +415,12 @@ namespace BWAPI
     StrCopy(data->mapHash, Broodwar->mapHash());
 
     data->startLocationCount = Broodwar->getStartLocations().size();
-    int i = 0;
-    for(TilePosition t : Broodwar->getStartLocations())
+    int idx = 0;
+    for (TilePosition t : Broodwar->getStartLocations())
     {
-      data->startLocations[i].x = t.x;
-      data->startLocations[i].y = t.y;
-      i++;
+      data->startLocations[idx].x = t.x;
+      data->startLocations[idx].y = t.y;
+      idx++;
     }
 
     //static force data
@@ -490,6 +491,7 @@ namespace BWAPI
 
     data->frameCount              = Broodwar->getFrameCount();
     data->replayFrameCount        = Broodwar->getReplayFrameCount();
+    data->randomSeed              = Broodwar->getRandomSeed();
     data->fps                     = Broodwar->getFPS();
     data->botAPM_noselects        = Broodwar->getAPM(false);
     data->botAPM_selects          = Broodwar->getAPM(true);
@@ -526,9 +528,9 @@ namespace BWAPI
       data->isPaused = Broodwar->isPaused();
       data->selectedUnitCount = Broodwar->getSelectedUnits().size();
 
-      int i = 0;
+      int idx = 0;
       for(Unit t : Broodwar->getSelectedUnits())
-        data->selectedUnits[i++] = getUnitID(t);
+        data->selectedUnits[idx++] = getUnitID(t);
 
       //dynamic map data
       Map::copyToSharedMemory();

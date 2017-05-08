@@ -32,7 +32,6 @@ BOOL (WINAPI   *_ClipCursorOld)(const RECT *lpRect);
 BOOL (STORMAPI *_SDrawLockSurfaceOld)(int surfacenumber, RECT *lpDestRect, void **lplpSurface, int *lpPitch, int arg_unused);
 BOOL (STORMAPI *_SDrawUnlockSurfaceOld)(int surfacenumber, void *lpSurface, int a3, RECT *lpRect);
 BOOL (STORMAPI *_SDrawUpdatePaletteOld)(unsigned int firstentry, unsigned int numentries, PALETTEENTRY *pPalEntries, int a4);
-BOOL (STORMAPI *_SDrawRealizePaletteOld)();
 
 BITMAPINFO256 wmodebmp;
 HBITMAP hwmodeBmp;
@@ -283,13 +282,12 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
         case SIZE_RESTORED:
           {
-            char szTemp[32];
             RECT tempRect;
             GetClientRect(hWnd, &tempRect);
             windowRect.right  = tempRect.right;
             windowRect.bottom = tempRect.bottom;
-            WritePrivateProfileStringA("window", "width",  _itoa(tempRect.right,  szTemp, 10), configPath().c_str());
-            WritePrivateProfileStringA("window", "height", _itoa(tempRect.bottom, szTemp, 10), configPath().c_str());
+            WriteConfig("window", "width", tempRect.right);
+            WriteConfig("window", "height", tempRect.bottom);
             break;
           }
         }// wParam switch
@@ -306,10 +304,8 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
           windowRect.left = tempRect.left;
           windowRect.top  = tempRect.top;
-
-          char szTemp[32];
-          WritePrivateProfileStringA("window", "left", _itoa(tempRect.left, szTemp, 10), configPath().c_str());
-          WritePrivateProfileStringA("window", "top",  _itoa(tempRect.top, szTemp, 10), configPath().c_str());
+          WriteConfig("window", "left", tempRect.left);
+          WriteConfig("window", "top",  tempRect.top);
         }
         break;
       } // case WM_MOVE
@@ -381,7 +377,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
       break;
     case WM_ACTIVATEAPP:
       if ( wOriginalProc )
-        return wOriginalProc(hWnd, WM_ACTIVATEAPP, (WPARAM)1, NULL);
+        return CallWindowProc(wOriginalProc, hWnd, WM_ACTIVATEAPP, (WPARAM)1, NULL);
     case WM_SETCURSOR:
     case WM_ERASEBKGND:
       return DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -460,7 +456,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
   // Call the original WndProc
   if ( wOriginalProc )
-    return wOriginalProc(hWnd, uMsg, wParam, lParam);
+    return CallWindowProc(wOriginalProc, hWnd, uMsg, wParam, lParam);
   return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
@@ -573,21 +569,6 @@ BOOL __stdcall _SDrawUpdatePalette(unsigned int firstentry, unsigned int numentr
   return TRUE;
 }
 
-BOOL __stdcall _SDrawRealizePalette()
-{
-  if ( !wmode || !ghMainWnd )
-  {
-    if ( _SDrawRealizePaletteOld )
-      return _SDrawRealizePaletteOld();
-    return SDrawRealizePalette();
-  }
-
-  if ( IsIconic(ghMainWnd) )
-    return FALSE;
-
-  return TRUE;
-}
-
 void SetWMode(int width, int height, bool state)
 {
 #ifndef SHADOW_BROODWAR
@@ -648,7 +629,7 @@ void SetWMode(int width, int height, bool state)
     SetCursorShowState(false);
 
     SetDIBColorTable(hdcMem, 0, 256, wmodebmp.bmiColors);
-    WritePrivateProfileStringA("window", "windowed", "ON", configPath().c_str());
+    WriteConfig("window", "windowed", "ON");
   }
   else
   {
@@ -668,7 +649,7 @@ void SetWMode(int width, int height, bool state)
     }
     DDrawDestroy();
     DDrawInitialize(width, height);
-    WritePrivateProfileStringA("window", "windowed", "OFF", configPath().c_str());
+    WriteConfig("window", "windowed", "OFF");
   }
 #endif
 }

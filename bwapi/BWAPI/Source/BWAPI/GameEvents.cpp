@@ -1,6 +1,9 @@
 #include "GameImpl.h"
 #include <ctime>
 
+#include <Util/Path.h>
+#include <Util/StringUtil.h>
+
 #include "Detours.h"
 
 #include <BW/Pathing.h>
@@ -59,7 +62,7 @@ namespace BWAPI
       // First check if player owns a unit at start
       for (int u = 0; u < UnitTypes::None; ++u)
       {
-        if (BW::BWDATA::AllScores.unitCounts.all[u][i])
+        if (BW::BWDATA::Game.unitCounts.all[u][i])
         {
           if (this->players[i])
             this->players[i]->setParticipating();
@@ -164,7 +167,7 @@ namespace BWAPI
     for (int i = 0; i < BW::PLAYABLE_PLAYER_COUNT; ++i)
     {
       // Skip Start Locations that don't exist
-      if (BW::BWDATA::startPositions[i] == Positions::Origin)
+      if (BW::BWDATA::Game.startPositions[i] == Positions::Origin)
         continue;
 
       // If the game is UMS and player is observer and race is not (UserSelect OR invalid player type), skip
@@ -178,7 +181,7 @@ namespace BWAPI
         continue;
 
       // add start location
-      startLocations.push_back(TilePosition(BW::BWDATA::startPositions[i] - Position(64, 48)));
+      startLocations.push_back(TilePosition(BW::BWDATA::Game.startPositions[i] - Position(64, 48)));
     }
 
     // Get Player Objects
@@ -225,7 +228,7 @@ namespace BWAPI
 
     for ( int f = 1; f <= 4; ++f )
     {
-      ForceImpl *newForce = new ForceImpl( BW::BWDATA::ForceNames[f-1].data() );
+      ForceImpl *newForce = new ForceImpl( BW::BWDATA::Game.forceNames[f-1].data() );
       this->forces.insert( newForce );
       for (int p = 0; p < BW::PLAYABLE_PLAYER_COUNT; ++p)
       {
@@ -318,7 +321,7 @@ namespace BWAPI
       events.back().setText(text.c_str());
     }
   }
-  int fixPathString(const char *in, char *out, size_t outLen)
+  int fixPathString(const char *in, char *out_, size_t outLen)
   {
     unsigned int n = 0;
     const unsigned char *_in = (const unsigned char*)in;
@@ -333,13 +336,13 @@ namespace BWAPI
            _in[i] != ':' )
       {
         if ( _in[i] == '/' )
-          out[n] = '\\';
+          out_[n] = '\\';
         else
-          out[n] = _in[i];
+          out_[n] = _in[i];
         ++n;
       }
     }
-    out[n] = 0;
+    out_[n] = 0;
     return n;
   }
 
@@ -372,31 +375,35 @@ namespace BWAPI
       std::string pathStr(szTmpPath);
 
       // Double any %'s remaining in the string so that strftime executes correctly
-      size_t tmp = std::string::npos;
-      while ( tmp = pathStr.find_last_of('%', tmp-1), tmp != std::string::npos )
-        pathStr.insert(tmp, "%");
+      {
+        size_t tmp = std::string::npos;
+        while (tmp = pathStr.find_last_of('%', tmp - 1), tmp != std::string::npos)
+          pathStr.insert(tmp, "%");
+      }
 
       // Replace the placeholder $'s with %'s for the strftime call
       std::replace(pathStr.begin(), pathStr.end(), '$', '%');
 
       // Get time
-      time_t tmpTime = time(nullptr);
-      tm *timeInfo = localtime(&tmpTime);
+      time_t tmpTime = std::time(nullptr);
+      tm *timeInfo = std::localtime(&tmpTime);
 
       // Expand time strings, add a handler for this specific task to ignore errors in the format string
+      // TODO: Replace with boost time format
       _invalid_parameter_handler old = _set_invalid_parameter_handler(&ignore_invalid_parameter);
-        strftime(szTmpPath, sizeof(szTmpPath), pathStr.c_str(), timeInfo);
+        std::strftime(szTmpPath, sizeof(szTmpPath), pathStr.c_str(), timeInfo);
       _set_invalid_parameter_handler(old);
       pathStr = szTmpPath;
 
       // Remove illegal characters
-      pathStr.erase(std::remove_if(pathStr.begin(), pathStr.end(), [](char c){ return iscntrl( reinterpret_cast<unsigned char&>(c) ) ||  c == '?' || c == '*' ||
-                                                                                c == '<' ||  c == '|' || c == '>' || c == '"' ||
-                                                                                c == ':';}), pathStr.end());
-      // Create the directory tree
-      size_t pos = 0;
-      while ( pos = pathStr.find_first_of("/\\", pos+1), pos != std::string::npos )
-        CreateDirectoryA(pathStr.substr(0,pos).c_str(), nullptr);
+      pathStr.erase(std::remove_if(pathStr.begin(), pathStr.end(),
+                                   [](char c) {
+                                     return iscntrl(reinterpret_cast<unsigned char&>(c)) || c == '?' || c == '*' ||
+                                         c == '<' || c == '|' || c == '>' || c == '"';
+                                   }), pathStr.end());
+
+      Util::Path parent_p = Util::Path(pathStr).parent_path();
+      Util::create_directories(parent_p);
 
       // Copy to global desired replay name
       gDesiredReplayName = pathStr;

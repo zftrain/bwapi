@@ -22,7 +22,6 @@ int   STORMAPI   _SStrCopy(char *dest, const char *source, int size);
 BOOL  STORMAPI   _SNetReceiveMessage(int *senderplayerid, char **data, int *databytes);
 void  __stdcall  DrawHook(BW::Bitmap *pSurface, BW::bounds *pBounds);
 void  __stdcall  DrawDialogHook(BW::Bitmap *pSurface, BW::bounds *pBounds);
-BOOL  STORMAPI   _SFileAuthenticateArchive(HANDLE hArchive, DWORD *dwReturnVal);
 BOOL  STORMAPI   _SFileOpenFileEx(HANDLE hMpq, const char *szFileName, DWORD dwSearchScope, HANDLE *phFile);
 BOOL  STORMAPI   _SFileOpenFile(const char *filename, HANDLE *phFile);
 void *STORMAPI   _SMemAlloc(size_t amount, char *logfilename, int logline, char defaultValue);
@@ -41,6 +40,7 @@ VOID   WINAPI _Sleep(DWORD dwMilliseconds);
 HANDLE WINAPI _CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize,LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, DWORD dwCreationFlags, LPDWORD lpThreadId);
 HANDLE WINAPI _CreateEvent(LPSECURITY_ATTRIBUTES lpEventAttributes, BOOL bManualReset, BOOL bInitialState, LPCSTR lpName);
 void WINAPI _GetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime);
+LPSTR WINAPI _GetCommandLineA();
 
 extern DWORD lastTurnTime;
 extern DWORD lastTurnFrame;
@@ -64,6 +64,7 @@ extern DECL_OLDFXN(Sleep);
 extern DECL_OLDFXN(CreateThread);
 extern DECL_OLDFXN(CreateEventA);
 extern DECL_OLDFXN(GetSystemTimeAsFileTime);
+extern DECL_OLDFXN(GetCommandLineA);
 
 void _RandomizePlayerRaces();
 void _InitializePlayerConsole();

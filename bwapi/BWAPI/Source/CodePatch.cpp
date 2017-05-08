@@ -37,7 +37,6 @@ void ApplyCodePatches()
     HackUtil::JmpPatch(BW::BWFXN_RefundMinAndGas5, &_refundMinAndGas5Hook);
     HackUtil::JmpPatch(BW::BWDATA::BWFXN_QueueCommand, &CommandFilter);
     HackUtil::JmpPatch(BW::BWDATA::BWFXN_DDrawDestroy, &DDrawDestroy);
-    HackUtil::JmpPatch(BW::BWFXN_NetSelectReturnMenu, &_SelectReturnMenu);
     HackUtil::CallPatch(BW::BWFXN_RandomizeRacePatch, &_RandomizePlayerRaces);
     HackUtil::CallPatch(BW::BWFXN_InitPlayerConsolePatch, &_InitializePlayerConsole);
     
@@ -57,9 +56,6 @@ void ApplyCodePatches()
     for (auto &it : BW::BWDATA::gluChatSwishController) it.wType = 4;
   }
   // ---------------------------------- VERSION INDEPENDENT --------------------------------------------------
-  // Write storm authentication patch (allow custom network modes)
-  HackUtil::JmpPatch(HackUtil::GetImport("storm.dll", 251), &_SFileAuthenticateArchive);
-
   // Storm detours
   _SNetLeaveGameOld       = HackUtil::PatchImport("storm.dll", 119, &_SNetLeaveGame);
   _SNetReceiveMessageOld  = HackUtil::PatchImport("storm.dll", 121, &_SNetReceiveMessage);
@@ -69,13 +65,12 @@ void ApplyCodePatches()
   _SDrawCaptureScreenOld  = HackUtil::PatchImport("storm.dll", 342, &_SDrawCaptureScreen);
   _SMemAllocOld           = HackUtil::PatchImport("storm.dll", 401, &_SMemAlloc);
   _SStrCopyOld            = HackUtil::PatchImport("storm.dll", 501, &_SStrCopy);
-
+  
   // wmode/drawing detours
   _GetCursorPosOld         = HackUtil::PatchImport("user32.dll", "GetCursorPos", &_GetCursorPos);
   _SetCursorPosOld         = HackUtil::PatchImport("user32.dll", "SetCursorPos", &_SetCursorPos);
   _ClipCursorOld           = HackUtil::PatchImport("user32.dll", "ClipCursor", &_ClipCursor);
   _SDrawLockSurfaceOld     = HackUtil::PatchImport("storm.dll", 350, &_SDrawLockSurface);
-  _SDrawRealizePaletteOld  = HackUtil::PatchImport("storm.dll", 354, &_SDrawRealizePalette);
   _SDrawUnlockSurfaceOld   = HackUtil::PatchImport("storm.dll", 356, &_SDrawUnlockSurface);
   _SDrawUpdatePaletteOld   = HackUtil::PatchImport("storm.dll", 357, &_SDrawUpdatePalette);
   _CreateWindowExAOld      = HackUtil::PatchImport("user32.dll", "CreateWindowExA", &_CreateWindowEx);
@@ -89,36 +84,6 @@ void ApplyCodePatches()
   _CreateThreadOld       = HackUtil::PatchImport("kernel32.dll", "CreateThread", &_CreateThread);
   _CreateEventAOld       = HackUtil::PatchImport("kernel32.dll", "CreateEventA", &_CreateEvent);
   _GetSystemTimeAsFileTimeOld = HackUtil::PatchImport("kernel32.dll", "GetSystemTimeAsFileTime", &_GetSystemTimeAsFileTime);
+  _GetCommandLineAOld    = HackUtil::PatchImport("kernel32.dll", "GetCommandLineA", &_GetCommandLineA);
 #endif
-}
-
-//----------------------------------------- NET-MODE RETURN MENU ---------------------------------------------
-void _SelectReturnMenu()
-{
-  switch ( BW::BWDATA::NetMode )
-  {
-  case 'BNET':
-    BW::BWDATA::glGluesMode = BW::GLUE_BATTLE;  // battle.net
-    break;
-  case 'IPXN':
-  case 'ATLK':
-  case 'IPXX':
-  case 'UDPN':
-  case 'LUDP':
-  case 'LPIP':
-  case 'DRIP':
-  case 'SMEM':
-    BW::BWDATA::glGluesMode = BW::GLUE_GAME_SELECT; // game select
-    break;
-  case 'MDMX':
-  case 'MODM':
-    BW::BWDATA::glGluesMode = BW::GLUE_MODEM; // modem
-    break;
-  case 'SCBL':
-    BW::BWDATA::glGluesMode = BW::GLUE_DIRECT; // direct connect
-    break;
-  default:
-    BW::BWDATA::glGluesMode = BW::GLUE_MAIN_MENU;  // main menu
-    break;
-  }
 }

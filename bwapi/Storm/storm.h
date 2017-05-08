@@ -476,6 +476,7 @@ BOOL STORMAPI SFileDdaGetPos(HANDLE directsound, int a2, int a3);
 
 BOOL STORMAPI SFileDdaInitialize(HANDLE directsound);
 BOOL STORMAPI SFileDdaSetVolume(HANDLE directsound, signed int bigvolume, signed int volume);
+BOOL STORMAPI SFileDestroy();
 
 BOOL STORMAPI SFileGetFileArchive(HANDLE hFile, HANDLE archive);
 LONG STORMAPI SFileGetFileSize(HANDLE hFile, LPDWORD lpFileSizeHigh);
@@ -755,7 +756,7 @@ SDrawPostClose();
 
 
 // undefined
-BOOL STORMAPI SDrawRealizePalette();
+//BOOL STORMAPI SDrawRealizePalette();
 
 BOOL STORMAPI SDrawUnlockSurface(int surfacenumber, void *lpSurface, int a3, RECT *lpRect);
 BOOL STORMAPI SDrawUpdatePalette(unsigned int firstentry, unsigned int numentries, PALETTEENTRY *pPalEntries, int a4);
@@ -894,7 +895,7 @@ BOOL STORMAPI STransCreateE(void *pBuffer, int width, int height, int bpp, int a
 BOOL STORMAPI SVidDestroy();
 BOOL STORMAPI SVidGetSize(HANDLE video, int width, int height, int zero);
 BOOL STORMAPI SVidInitialize(HANDLE video);
-BOOL STORMAPI SVidPlayBegin(char *filename, int arg4, int a3, int a4, int a5, int a6, HANDLE video);
+BOOL STORMAPI SVidPlayBegin(char *filename, int arg4, int a3, int a4, int a5, int a6, HANDLE* video);
 
 BOOL STORMAPI SVidPlayContinueSingle(HANDLE video, int a2, int a3);
 BOOL STORMAPI SVidPlayEnd(HANDLE video);

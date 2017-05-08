@@ -13,6 +13,9 @@ Debug_Pipeline
 *.bak
 cppcheck.xml
 TestResults
+*.VC.db
+*.VC.opendb
+.vs
 
 Release_Binary/AIModuleLoader
 Release_Binary/Chaoslauncher/Plugins/BWAPI_*
@@ -31,3 +34,8 @@ bwapi/libReplayToolTest/TestData/Replay_Tool_Actual.exe
 bwapi/ipch/
 Release_Binary/Chaoslauncher/__log.txt
 Release_Binary/ExampleAIClient/Source/
+bwapi/packages/
+apps/cygwin/
+apps/http*
+BWAPI.7z
+
